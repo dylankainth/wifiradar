@@ -1,0 +1,22 @@
+# real sessions and raw logs never go in git
+data/*
+!data/.gitkeep
+*.jsonl
+!tests/fixtures/*.jsonl
+sessions/
+# python
+__pycache__/
+.venv/
+*.pyc
+.pytest_cache/
+# generated results (keep curated images under docs/img)
+eval/out/*
+!eval/out/.gitkeep
+# android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+.idea/
+.cxx/

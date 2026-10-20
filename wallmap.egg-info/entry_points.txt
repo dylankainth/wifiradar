@@ -1,0 +1,4 @@
+[console_scripts]
+solver = solver.cli:main
+wallmap-eval = eval.cli:main
+wallmap-sim = sim.cli:main
