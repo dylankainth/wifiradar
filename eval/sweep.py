@@ -85,11 +85,11 @@ def sweeps(out_dir: Path, seeds=range(1, 5), procs=4, quick=False):
     """Noise / sampling-rate sweeps. Each point = mean over seeds."""
     out_dir.mkdir(parents=True, exist_ok=True)
     grids = {
-        "rss_noise_db": ("sim.radio.meas_sigma_db", [0.5, 1.5, 3.0, 5.0]),
-        "shadow_sigma_db": ("sim.radio.shadow_sigma_db", [0.0, 2.5, 4.0, 6.0]),
-        "scan_period_s": ("sim.scan_period_s", [2.0, 4.0, 8.0, 15.0]),
-        "heading_drift_scale": ("sim.heading_drift_scale", [0.0, 1.0, 2.0, 4.0]),
-        "n_visits": ("sim.walk.n_visits", [15, 30, 60]),
+        "rss_noise_db": ("radio.meas_sigma_db", [0.5, 1.5, 3.0, 5.0]),
+        "shadow_sigma_db": ("radio.shadow_sigma_db", [0.0, 2.5, 4.0, 6.0]),
+        "scan_period_s": ("scan_period_s", [2.0, 4.0, 8.0, 15.0]),
+        "heading_drift_scale": ("heading_drift_scale", [0.0, 1.0, 2.0, 4.0]),
+        "n_visits": ("walk.n_visits", [15, 30, 60]),
     }
     if quick:
         grids = {k: (a, v[:2]) for k, (a, v) in grids.items()}

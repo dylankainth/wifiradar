@@ -34,12 +34,15 @@ class Dataset:
 
 
 def build_dataset(ses: Session, pg: PoseGraphResult, groups: list[list[str]], min_obs: int = 8,
-                  min_max_rssi: float = -90.0) -> Dataset:
+                  rssi_floor: float = -88.0) -> Dataset:
+    """rssi_floor: results weaker than this are dropped. Android only reports APs it detected, so values near the
+    sensitivity limit are censored (biased high) and would be mistaken for 'little wall loss'."""
     node_of_scan = {int(s): k for k, s in enumerate(pg.nodes.scan_idx)}
     counts: dict[str, int] = {}
     for k in node_of_scan:
         for o in ses.scans[k].obs:
-            counts[o.bssid] = counts.get(o.bssid, 0) + 1
+            if o.rssi >= rssi_floor:
+                counts[o.bssid] = counts.get(o.bssid, 0) + 1
     keep_groups = [[b for b in g if counts.get(b, 0) >= min_obs] for g in groups]
     keep_groups = [g for g in keep_groups if g]
     bssids = [b for g in keep_groups for b in g]
@@ -49,7 +52,7 @@ def build_dataset(ses: Session, pg: PoseGraphResult, groups: list[list[str]], mi
     on, ob, orr = [], [], []
     for k, node in node_of_scan.items():
         for o in ses.scans[k].obs:
-            if o.bssid in bidx:
+            if o.bssid in bidx and o.rssi >= rssi_floor:
                 on.append(node); ob.append(bidx[o.bssid]); orr.append(o.rssi)
                 freq[bidx[o.bssid]] = o.freq_mhz
     rx, ra, rb, rd, rs = [], [], [], [], []

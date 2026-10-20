@@ -16,6 +16,14 @@ from solver.pipeline import Result
 GT_COLOR = "#999999"
 
 
+def _limits(ax, gt, pad=3.0):
+    """Zoom on the building: far-away neighbour APs would otherwise squash the plan."""
+    if gt is not None and gt.bounds is not None:
+        b = gt.bounds
+        ax.set_xlim(b[0] - pad, b[2] + pad)
+        ax.set_ylim(b[1] - pad, b[3] + pad)
+
+
 def _gt_walls(ax, gt: GroundTruth | None, obs=None):
     if gt is None:
         return
@@ -65,7 +73,7 @@ def plot_all(res: Result, ev: Evaluation | None, gt: GroundTruth | None, out_dir
     ax.plot(*A(res.aps0.xy).T, "x", color="#d95f02", ms=7, label="multilateration (walls ignored)")
     if res.fit is not None:
         ax.plot(*A(res.fit.ap_xy).T, "o", color="#1b9e77", ms=5, label="joint refinement")
-    ax.set_aspect("equal"); ax.legend(fontsize=7); ax.grid(alpha=.2)
+    ax.set_aspect("equal"); ax.legend(fontsize=7); ax.grid(alpha=.2); _limits(ax, gt, 6.0)
     if ev:
         ax.set_title(f"AP positions (inside-house mean error: {ev.metrics['ap_err_multilat_inside_m']:.2f} m -> "
                      f"{ev.metrics['ap_err_joint_inside_m']:.2f} m)", fontsize=8)
@@ -85,7 +93,7 @@ def plot_all(res: Result, ev: Evaluation | None, gt: GroundTruth | None, out_dir
         sm = plt.cm.ScalarMappable(cmap=cm, norm=plt.Normalize(0, 1))
         fig.colorbar(sm, ax=ax, label="wall confidence (bootstrap support)", shrink=.7)
     ax.plot(*A(res.fit.ap_xy).T if res.fit is not None else A(res.aps0.xy).T, "^", color="#d62728", ms=6)
-    ax.set_aspect("equal"); ax.grid(alpha=.2)
+    ax.set_aspect("equal"); ax.grid(alpha=.2); _limits(ax, gt)
     if ev and "walls@0.5" in ev.metrics:
         m = ev.metrics["walls@0.5"]
         ax.set_title(f"estimated walls  (@0.5 m: precision {m['precision']:.2f}, recall(obs) {m['recall']:.2f}, "

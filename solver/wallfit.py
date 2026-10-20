@@ -157,7 +157,7 @@ class Problem:
     def _bounds(self, params, K):
         lo, hi = self.lo, self.hi
         b = {"walls": (np.tile(np.r_[lo, lo], (K, 1)), np.tile(np.r_[hi, hi], (K, 1))),
-             "a": (np.full(K, -6.0), np.full(K, 4.0)),
+             "a": (np.full(K, -6.0), np.full(K, 30.0)),   # raw; a = softplus(raw) dB, so up to ~30 dB
              "ap": (np.tile(lo - 15, (params["ap"].shape[0], 1)), np.tile(hi + 15, (params["ap"].shape[0], 1))),
              "c": (np.full(params["c"].shape, -90.0), np.full(params["c"].shape, -10.0)),
              "n": (1.5, 4.5), "w5": (0.7, 1.8), "alpha": (0.0, 0.2), "dth": (-0.25, 0.25)}

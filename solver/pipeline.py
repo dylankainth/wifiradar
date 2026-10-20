@@ -31,6 +31,7 @@ class PipelineConfig:
     boot_block: int = 6
     boot_frac: float = 0.7
     support_tol_m: float = 0.5
+    rssi_floor: float = -88.0      # drop scan results weaker than this (censored near the sensitivity limit)
     seed: int = 0
     theta_override_rad: float | None = None   # diagnostics only: skip the angle search (oracle experiments)
     marker_xy: dict | None = None  # only used with pg.use_labels (ablation)
@@ -96,14 +97,25 @@ def _fit_at(ds, aps0, theta, cfg: PipelineConfig, node_mask=None):
 
 def run_pipeline(ses: Session, cfg: PipelineConfig | None = None) -> Result:
     cfg = cfg or PipelineConfig()
+    problems = []
+    if len(ses.scans) < 15:
+        problems.append(f"only {len(ses.scans)} WiFi scans (need >= 15; is scan throttling still on?)")
+    for k in ("acc", "rotvec"):
+        if k not in ses.imu or len(ses.imu[k][0]) < 100:
+            problems.append(f"missing/short IMU stream '{k}' (needed for dead reckoning)")
+    if problems:
+        raise ValueError("session unusable: " + "; ".join(problems))
     tm = {}
     t = time.time()
     pdr = run_pdr(ses, cfg.pdr)
+    if len(pdr.step_t) < 10:
+        raise ValueError(f"only {len(pdr.step_t)} steps detected; was the phone held flat while walking? "
+                         f"(PDRConfig.peak_height={cfg.pdr.peak_height} m/s^2)")
     groups = group_bssids(ses, cfg.grouping)
     tm["pdr+grouping"] = time.time() - t; t = time.time()
     pg = run_posegraph(ses, pdr, groups, cfg.pg, cfg.marker_xy)
     tm["posegraph"] = time.time() - t; t = time.time()
-    ds = build_dataset(ses, pg, groups)
+    ds = build_dataset(ses, pg, groups, rssi_floor=cfg.rssi_floor)
     aps0 = localise_aps(ds)
     tm["aploc"] = time.time() - t; t = time.time()
     # Manhattan angle: coarse sweep of the greedy-selection objective, then joint refinement of the best few

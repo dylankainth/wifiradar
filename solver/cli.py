@@ -12,7 +12,7 @@ def run(args):
     from eval.evaluate import evaluate
     from eval.plots import plot_all
     from eval.truth import load_truth
-    from solver.export import write_exports
+    from solver.export import result_dict, write_exports
     from solver.pipeline import PipelineConfig, run_pipeline
 
     ses = load_session(args.session)
@@ -33,9 +33,7 @@ def run(args):
     paths = plot_all(res, ev, gt, out)
     summary = {"session": str(args.session), "runtime_s": round(time.time() - t0, 1), "timings_s": {k: round(v, 1) for k, v in res.timings.items()},
                "n_scans": len(ses.scans), "n_groups": len(res.groups), "theta_deg": float(res.fit.theta * 180 / 3.14159265) if res.fit else None,
-               "walls": [{"xy": w.tolist(), "confidence": float(s), "attenuation_db": float(a)}
-                         for w, s, a in zip(res.fit.walls, res.support, res.fit.atten)] if res.fit else [],
-               "metrics": ev.metrics if ev else None}
+               **result_dict(res), "metrics": ev.metrics if ev else None}
     (out / "result.json").write_text(json.dumps(summary, indent=1, default=float))
     print(f"wrote {out}/ (walls.geojson, walls.svg, result.json, plots) in {summary['runtime_s']} s")
     if ev:

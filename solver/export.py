@@ -67,3 +67,25 @@ def write_exports(res: Result, out_dir: str | Path, R=None, t=None):
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "walls.geojson").write_text(json.dumps(to_geojson(res, R, t), indent=1))
     (out_dir / "walls.svg").write_text(to_svg(res, R, t))
+
+
+def result_dict(res: Result) -> dict:
+    """Everything needed to evaluate/overlay later without re-running (solver frame)."""
+    fit = res.fit
+    markers = []
+    for w in res.session.waypoints:
+        markers.append({"marker": int(w["marker"]), "t_s": float(w["t_s"]),
+                        "xy": res.pg.at(w["t_s"] + 1.5)[0].tolist()})
+    return {
+        "frame": "solver (arbitrary rigid frame; align with markers)",
+        "theta_deg": float(np.rad2deg(fit.theta)) if fit else None,
+        "walls": [{"xy": w.tolist(), "confidence": float(s), "attenuation_db": float(a), "evidence_dloss": float(d)}
+                  for w, s, a, d in zip(fit.walls, res.support, fit.atten, fit.dL)] if fit else [],
+        "aps": res.ap_list,
+        "aps_multilat": [{"bssids": g, "xy": res.aps0.xy[j].tolist()} for j, g in enumerate(res.ds.groups)],
+        "markers_est": markers,
+        "nodes_xy": res.pg.P.tolist(),
+        "trajectory_pdr_only": res.pg.nodes.pdr_xy.tolist(),
+        "path_loss_exponent": fit.n if fit else None,
+        "groups": res.groups,
+    }

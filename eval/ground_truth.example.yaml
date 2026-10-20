@@ -1,0 +1,70 @@
+# Example ground truth for the simulated 10 x 8 m flat (see docs/ground-truth.md). Replace with your tape measurements.
+bounds: [0, 0, 10, 8]
+walls:
+- from: [0.0, 0.0]
+  to: [10.0, 0.0]
+  material: brick
+- from: [10.0, 0.0]
+  to: [10.0, 8.0]
+  material: brick
+- from: [10.0, 8.0]
+  to: [0.0, 8.0]
+  material: brick
+- from: [0.0, 8.0]
+  to: [0.0, 0.0]
+  material: brick
+- from: [0.0, 4.0]
+  to: [1.5, 4.0]
+  material: brick
+- from: [2.4, 4.0]
+  to: [7.0, 4.0]
+  material: brick
+- from: [7.9, 4.0]
+  to: [10.0, 4.0]
+  material: brick
+- from: [0.0, 5.5]
+  to: [1.0, 5.5]
+  material: drywall
+- from: [1.9, 5.5]
+  to: [4.6, 5.5]
+  material: drywall
+- from: [5.4, 5.5]
+  to: [8.0, 5.5]
+  material: drywall
+- from: [8.9, 5.5]
+  to: [10.0, 5.5]
+  material: drywall
+- from: [5.0, 0.0]
+  to: [5.0, 1.4]
+  material: drywall
+- from: [5.0, 2.5]
+  to: [5.0, 4.0]
+  material: drywall
+- from: [4.0, 5.5]
+  to: [4.0, 8.0]
+  material: drywall
+- from: [6.5, 5.5]
+  to: [6.5, 8.0]
+  material: drywall
+aps:
+- name: router
+  xy: [2.0, 4.75]
+  bssids: ['c4:e9:84:5a:10:10', 'c4:e9:84:5a:10:11', 'c6:e9:84:5a:10:12']
+- name: extender
+  xy: [8.2, 6.9]
+  bssids: ['c4:e9:84:5a:10:18', 'c4:e9:84:5a:10:19', 'c6:e9:84:5a:10:1a']
+- name: tv_stick
+  xy: [3.6, 0.7]
+  bssids: ['fa:8f:ca:31:77:0c']
+- name: printer
+  xy: [1.2, 7.2]
+  bssids: ['3c:2a:f4:90:0b:d2']
+markers:
+  1: [1.5, 0.75]
+  2: [2.4, 2.45]
+  3: [1.2, 6.9]
+  4: [5.3, 7.0]
+  5: [9.1, 6.4]
+  6: [7.2, 2.6]
+  7: [6.8, 0.65]
+  8: [5.4, 4.65]
