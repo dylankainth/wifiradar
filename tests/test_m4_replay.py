@@ -62,3 +62,15 @@ def test_solver_cli_and_overlay_on_fake_real(fake, tmp_path):
     from eval.overlay import main as overlay_main
     overlay_main(["--result", str(out / "result.json"), "--truth", str(fr / "ground_truth.yaml"), "--out", str(tmp_path / "o.png")])
     assert (tmp_path / "o.png").exists()
+
+
+def test_check_command_reports_healthy_and_broken_sessions(fake, tmp_path, capsys):
+    from solver.check import check_session
+    _, fr = fake
+    res, st = check_session(fr)
+    assert not any(l == "FAIL" for l, _ in res) and st["steps"] > 100
+    bad = tmp_path / "bad"; bad.mkdir()
+    (bad / "meta.json").write_text("{}")
+    (bad / "events.jsonl").write_text('{"t_ns":1,"type":"wifi_scan","results":[]}\n')
+    res, _ = check_session(bad)
+    assert sum(l == "FAIL" for l, _ in res) >= 3

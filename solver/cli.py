@@ -46,6 +46,11 @@ def run(args):
             print("walls @0.5 m:", m["walls@0.5"])
 
 
+def raise_exit(a):
+    from solver.check import main as check_main
+    raise SystemExit(check_main(a.session))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="solver")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -60,6 +65,9 @@ def main(argv=None):
                         "so measure it: walk 10 m, count steps")
     r.add_argument("--verbose", action="store_true")
     r.set_defaults(fn=run)
+    c = sub.add_parser("check", help="sanity-check a recorded session (scan rate, IMU, steps, markers) before solving")
+    c.add_argument("--session", required=True)
+    c.set_defaults(fn=lambda a: raise_exit(a))
     a = ap.parse_args(argv)
     a.fn(a)
 

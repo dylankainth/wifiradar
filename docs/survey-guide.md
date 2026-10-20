@@ -74,6 +74,14 @@ know), then pass `--step-length <10 / steps>` to `solver run` (e.g. 14 steps -> 
 
 ## 4. Run the solver on the laptop
 
+First, **sanity-check the recording** (takes a second, tells you if the walk is worth keeping):
+
+```bash
+uv run solver check --session data/home_walk_1
+```
+
+It prints OK/WARN/FAIL for scan rate, IMU rates, steps detected, APs heard, marker revisits. Fix any FAIL and re-walk before solving.
+
 ```bash
 unzip home_walk_1.zip -d data/home_walk_1
 uv run python -m solver.cli run --session data/home_walk_1 --truth ground_truth.yaml --out eval/out/home_walk_1
