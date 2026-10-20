@@ -31,7 +31,7 @@ class PipelineConfig:
     boot_block: int = 6
     boot_frac: float = 0.7
     support_tol_m: float = 0.5
-    rssi_floor: float = -88.0      # drop scan results weaker than this (censored near the sensitivity limit)
+    rssi_floor: float = -95.0      # drop scan results weaker than this (censored near the sensitivity limit)
     seed: int = 0
     theta_override_rad: float | None = None   # diagnostics only: skip the angle search (oracle experiments)
     marker_xy: dict | None = None  # only used with pg.use_labels (ablation)

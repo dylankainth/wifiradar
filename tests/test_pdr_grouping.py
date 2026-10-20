@@ -72,3 +72,24 @@ def test_grouping_does_not_merge_extender_with_router(sim):
     assert mac_distance(router, ext) == 8     # MAC-wise they look like the same radio...
     for g in groups:
         assert not (router in g and ext in g)  # ...but RSSI traces say otherwise
+
+
+def _fake_session(traces: dict[str, np.ndarray]):
+    from common.session import Scan, ScanObs, Session
+    n = len(next(iter(traces.values())))
+    scans = [Scan(float(i), [ScanObs(b, float(v[i]), 2437) for b, v in traces.items()]) for i in range(n)]
+    return Session(None, {}, 0, scans=scans)
+
+
+def test_adjacent_macs_merge_with_modest_correlation_but_distant_macs_do_not():
+    rng = np.random.default_rng(0)
+    base = rng.normal(-70, 4, 80)                      # weak AP: small position-dependent swing ...
+    noisy = lambda: base + rng.normal(0, 2.6, 80)      # ... comparable to the per-scan noise (corr ~0.7)
+    other = rng.normal(-60, 4, 80)                     # an unrelated AP elsewhere
+    ses = _fake_session({
+        "c4:e9:84:5a:10:10": noisy(), "c4:e9:84:5a:10:11": noisy() - 6,     # adjacent MACs, same radio
+        "c4:e9:84:5a:10:18": other,                                          # same OUI, MAC distance 8, other place
+    })
+    groups = {frozenset(g) for g in group_bssids(ses)}
+    assert frozenset({"c4:e9:84:5a:10:10", "c4:e9:84:5a:10:11"}) in groups
+    assert frozenset({"c4:e9:84:5a:10:18"}) in groups

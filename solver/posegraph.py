@@ -24,7 +24,7 @@ class PGConfig:
     sig_th0: float = 0.02          # odometry heading sigma: sig_th0 + sig_th1 * sqrt(dt)
     sig_th1: float = 0.01
     sig_compass: float = 0.35      # weak absolute heading prior (rad)
-    sig_scale: float = 0.04       # odometry scale is weakly observable; fingerprint loops bias it low
+    sig_scale: float = 0.015      # odometry scale: NOT observable from loop closures (they bias it low); trust the step length
     # loop closures from fingerprints
     use_loops: bool = True
     min_dt_s: float = 25.0
@@ -33,6 +33,7 @@ class PGConfig:
     fp_thresh_min_db: float = 3.0
     max_loops_per_node: int = 2
     sig_loop: float = 1.5
+    loop_radius: float = 0.0       # optional dead zone (m) around 'same place'; 0 = plain equality (tested: no better)
     robust_scale: float = 2.5
     # labelled ablation: marker ids give exact loop closures (+ anchors if coordinates are supplied)
     use_labels: bool = False
@@ -160,11 +161,15 @@ def optimise(nodes: Nodes, loops, cfg: PGConfig, label_pairs=(), anchors=()):
         lx, ly = c * dx + sn * dy, -sn * dx + c * dy
         out += [(lx - s * dp_loc[:, 0]) / sig_t, (ly - s * dp_loc[:, 1]) / sig_t, (TH[1:] - TH[:-1] - dth) / sig_th]
         out.append((TH - h) / cfg.sig_compass)
-        out.append(np.array([(X[0] - pxy[0, 0]) / 0.01, (Y[0] - pxy[0, 1]) / 0.01, 0.0]))
+        g = 1e3 if len(anchors) >= 2 else 0.01     # anchors fix the gauge themselves; otherwise pin node 0
+        out.append(np.array([(X[0] - pxy[0, 0]) / g, (Y[0] - pxy[0, 1]) / g, 0.0]))
         out.append(np.array([(s - 1) / cfg.sig_scale]))
         if L:
             a = np.array([l[0] for l in L]); b = np.array([l[1] for l in L])
-            out += [(X[a] - X[b]) / cfg.sig_loop, (Y[a] - Y[b]) / cfg.sig_loop]
+            dxl, dyl = X[a] - X[b], Y[a] - Y[b]
+            dd = np.hypot(dxl, dyl) + 1e-9
+            f = np.maximum(0.0, 1.0 - cfg.loop_radius / dd)       # zero penalty inside the matching radius
+            out += [dxl * f / cfg.sig_loop, dyl * f / cfg.sig_loop]
         if label_pairs:
             a = np.array([l[0] for l in label_pairs]); b = np.array([l[1] for l in label_pairs])
             out += [(X[a] - X[b]) / cfg.sig_label, (Y[a] - Y[b]) / cfg.sig_label]
@@ -206,8 +211,12 @@ def optimise(nodes: Nodes, loops, cfg: PGConfig, label_pairs=(), anchors=()):
     for k, (i, _) in enumerate(anchors):
         S[r + k, i] = 1
         S[r + len(anchors) + k, N + i] = 1
+    if label_pairs or anchors:
+        # user-supplied marker information is trusted: a plain least-squares pass first, so that large initial
+        # anchor residuals are not discounted as outliers by the robust loss (which then leaves the graph in the wrong basin)
+        x0 = least_squares(res, x0, jac_sparsity=S, loss="linear", method="trf", x_scale="jac", max_nfev=200).x
     sol = least_squares(res, x0, jac_sparsity=S, loss="soft_l1", f_scale=cfg.robust_scale, method="trf",
-                        x_scale="jac", max_nfev=60)
+                        x_scale="jac", max_nfev=400)
     X, Y, TH, s = unpack(sol.x)
     return np.stack([X, Y], 1), TH, float(s), sol
 
@@ -222,11 +231,25 @@ def run_posegraph(ses: Session, pdr: PDRResult, groups: list[list[str]], cfg: PG
     if cfg.use_loops:
         loops, d0, thr = find_loops(nodes, F, cfg)
     label_pairs, anchors = [], []
+    pdr_pos = pdr.pos
+    if cfg.use_labels and ses.waypoints and marker_xy:
+        # labelled ablation with known marker coordinates: express the PDR frame in the marker frame first
+        from common.geometry import umeyama_rigid
+        src = [pdr.pos(w["t_s"] + 1.5) for w in ses.waypoints if w["marker"] in marker_xy]
+        dst = [marker_xy[w["marker"]] for w in ses.waypoints if w["marker"] in marker_xy]
+        if len(src) >= 2:
+            R0, t0 = umeyama_rigid(np.array(src), np.array(dst))
+            ang = float(np.arctan2(R0[1, 0], R0[0, 0]))
+            nodes.pdr_xy = nodes.pdr_xy @ R0.T + t0
+            nodes.pdr_h = nodes.pdr_h + ang
+            pdr_pos = lambda t, _p=pdr.pos: _p(t) @ R0.T + t0
     if cfg.use_labels and ses.waypoints:
         last: dict[int, int] = {}
         for w in ses.waypoints:
             # the button is pressed on arrival; the scans taken while standing there are within a few seconds
             cand = np.where((nodes.t >= w["t_s"] - 0.3) & (nodes.t <= w["t_s"] + 3.5))[0]
+            # only scans taken while still standing at the marker: no detected step since the button press
+            cand = np.array([c for c in cand if pdr.steps_between(w["t_s"] + 0.3, nodes.t[c]) == 0], dtype=int)
             if len(cand) == 0:
                 continue
             i = int(cand[np.argmin(np.abs(nodes.t[cand] - (w["t_s"] + 1.5)))])
@@ -238,10 +261,10 @@ def run_posegraph(ses: Session, pdr: PDRResult, groups: list[list[str]], cfg: PG
                 anchors.append((i, marker_xy[m]))
     P, th, s, sol = optimise(nodes, loops, cfg, label_pairs, anchors)
     # drop closures that disagree after the first solve, then re-solve
-    keep = [(a, b, d) for a, b, d in loops if np.linalg.norm(P[a] - P[b]) < 3.0 * cfg.sig_loop]
+    keep = [(a, b, d) for a, b, d in loops if np.linalg.norm(P[a] - P[b]) < cfg.loop_radius + 3.0 * cfg.sig_loop]
     if len(keep) < len(loops):
         P, th, s, sol = optimise(nodes, keep, cfg, label_pairs, anchors)
     res = PoseGraphResult(nodes, P, th, s, loops, keep, {"d0": d0, "thr": thr, "cost": float(sol.cost),
                                                         "labels": len(label_pairs), "anchors": len(anchors)})
-    res._pdr = pdr.pos
+    res._pdr = pdr_pos
     return res

@@ -54,6 +54,13 @@ You need **ground truth** to evaluate (and, later, to calibrate):
 * If you use the "marker id" stepper because you revisit a marker, set the id to that marker's number first, then
   press the button; the app otherwise increments by one.
 
+## 2b. Calibrate your step length (1 minute, worth it)
+
+Dead reckoning assumes 0.70 m per step. Loop closures **cannot** correct the scale (they bias it low, see
+`docs/design.md`), so a 10 % step-length error becomes a 10 % error in every distance. Measure it once:
+walk 10 m at your normal pace counting steps (or just look at the first leg between two markers whose distance you
+know), then pass `--step-length <10 / steps>` to `solver run` (e.g. 14 steps -> `--step-length 0.71`).
+
 ## 3. Using the app
 
 1. Open the app, grant permissions, type a **session name** (e.g. `home_walk_1`), tap **Start**.

@@ -34,7 +34,7 @@ class Dataset:
 
 
 def build_dataset(ses: Session, pg: PoseGraphResult, groups: list[list[str]], min_obs: int = 8,
-                  rssi_floor: float = -88.0) -> Dataset:
+                  rssi_floor: float = -95.0) -> Dataset:
     """rssi_floor: results weaker than this are dropped. Android only reports APs it detected, so values near the
     sensitivity limit are censored (biased high) and would be mistaken for 'little wall loss'."""
     node_of_scan = {int(s): k for k, s in enumerate(pg.nodes.scan_idx)}

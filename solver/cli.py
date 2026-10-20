@@ -19,6 +19,8 @@ def run(args):
     out = Path(args.out or Path("eval/out") / Path(args.session).name)
     out.mkdir(parents=True, exist_ok=True)
     cfg = PipelineConfig(verbose=args.verbose, n_boot=args.boots)
+    if args.step_length:
+        cfg.pdr.step_len_m = args.step_length
     gt = None
     truth_path = args.truth or (Path(args.session) / "truth.json" if (Path(args.session) / "truth.json").exists() else None)
     if truth_path:
@@ -53,6 +55,9 @@ def main(argv=None):
     r.add_argument("--truth", help="truth.json (sim) or ground_truth.yaml; default: <session>/truth.json if present")
     r.add_argument("--labelled", action="store_true", help="ablation: feed waypoint markers to the solver")
     r.add_argument("--boots", type=int, default=6, help="bootstrap resamples for wall confidence")
+    r.add_argument("--step-length", type=float, default=None,
+                   help="your step length in metres (default 0.70). Odometry scale is not observable from loop closures, "
+                        "so measure it: walk 10 m, count steps")
     r.add_argument("--verbose", action="store_true")
     r.set_defaults(fn=run)
     a = ap.parse_args(argv)

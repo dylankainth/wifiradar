@@ -41,6 +41,8 @@ def run_case(case: dict) -> dict:
     with tempfile.TemporaryDirectory() as d:
         p = generate(sc, Path(d) / "s")
         ses, gt = load_session(p), load_truth(p)
+        if case.get("anchors"):   # labelled ablation: marker coordinates are given to the pose graph as anchors
+            pc.marker_xy = gt.markers
         if case.get("oracle_theta"):
             T = json.loads((p / "truth.json").read_text())
             pc.theta_override_rad = T["world_rot"] % (np.pi / 2)
@@ -58,6 +60,17 @@ def run_case(case: dict) -> dict:
                         "f1_all": w.get("f1_all"), "chamfer": w.get("chamfer_m"), "theta_err": m.get("theta_err_deg"),
                         "n_walls": m.get("walls_est"), "grouping": m["grouping_exact"],
                         "f1_1m": m.get("walls@1.0", {}).get("f1")})
+            if case.get("wall_detail") and res.fit is not None and len(res.fit.walls):
+                from common.geometry import sample_walls
+                from eval.metrics import _dist_to_walls, apply
+                W = np.hstack([apply(ev.R, ev.t, res.fit.walls[:, :2]), apply(ev.R, ev.t, res.fit.walls[:, 2:])])
+                det = []
+                for k, w in enumerate(W):
+                    pts, _ = sample_walls(w[None], 0.05)
+                    det.append({"support": float(res.support[k]), "dL": float(res.fit.dL[k]), "atten": float(res.fit.atten[k]),
+                                "length": float(np.hypot(w[2] - w[0], w[3] - w[1])),
+                                "frac_correct": float((_dist_to_walls(pts, gt.walls) <= 0.5).mean())})
+                row["walls_detail"] = det
         except Exception as e:  # keep sweeps going; failures are reported, not hidden
             import traceback
             row.update({"ok": False, "error": repr(e), "tb": traceback.format_exc()[-600:]})

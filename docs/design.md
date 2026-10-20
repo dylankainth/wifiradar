@@ -35,7 +35,11 @@ labelled ablation `solver run --labelled`, which feeds marker ids to the pose gr
 * Heading = world-frame horizontal direction of the device +y axis (phone flat in front of the user, top edge forward).
   Three modes: `rotvec` (absolute but disturbed by indoor magnetic fields), `gyro` (smooth, drifts), `fused`
   (complementary filter, tau = 20 s; default).
-* Step length is a constant 0.70 m; the pose graph estimates a global scale correction (prior sigma 4 %).
+* Step length is a constant 0.70 m (`--step-length` to change it). The pose graph carries a global odometry scale, but with a
+  tight prior (sigma 1.5 %): **loop closures cannot estimate scale**. A fingerprint match means "within about 1.5 m", never
+  "identical", so closures are one-sidedly biased towards shrinking the trajectory; with many closures (long walks) and a loose prior
+  the fitted scale collapsed to 0.4-0.5. Tightening the prior fixed it (long-walk marker error 1.7 m -> 0.7 m); a dead-zone closure
+  loss (no penalty inside the matching radius) was tried and was worse.
 
 ## 2. BSSID grouping (`solver/grouping.py`)
 

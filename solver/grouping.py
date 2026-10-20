@@ -21,6 +21,8 @@ class GroupingConfig:
     min_corr: float = 0.75
     max_resid_sd_db: float = 4.2
     max_mean_offset_db: float = 22.0
+    adjacent_mac_dist: int = 2      # MACs this close are almost surely one radio: relax the correlation test ...
+    adjacent_min_corr: float = 0.5  # ... to this (weak, far-away APs have noisy traces)
     low_var_db: float = 4.0         # weak/far APs barely vary along the walk, so correlation is uninformative:
                                     # there the (small) residual spread alone decides
     sparse_mac_dist: int = 3        # too few common scans: merge only if MACs are this close...
@@ -75,7 +77,8 @@ def group_bssids(ses: Session, cfg: GroupingConfig | None = None) -> list[list[s
                 continue
             nc, corr, sd, mean, spread = pair_stats(M[:, i], M[:, j])
             if nc >= cfg.min_common_scans:
-                good = (corr >= cfg.min_corr or spread < cfg.low_var_db) and sd <= cfg.max_resid_sd_db and abs(mean) <= cfg.max_mean_offset_db
+                min_corr = cfg.adjacent_min_corr if md <= cfg.adjacent_mac_dist else cfg.min_corr
+                good = (corr >= min_corr or spread < cfg.low_var_db) and sd <= cfg.max_resid_sd_db and abs(mean) <= cfg.max_mean_offset_db
                 score = sd
             else:
                 good = md <= cfg.sparse_mac_dist and (nc < 3 or abs(mean) <= cfg.sparse_max_offset_db)
