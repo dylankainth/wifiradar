@@ -75,7 +75,11 @@ def generate(cfg: SimConfig, out: str | Path) -> Path:
         w.add(ns(tj), "baro", hpa=round(float(1013.25 - 0.12 * 1.2 + 0.02 * np.sin(tj / 60) + r_imu.normal(0, .02)), 3))
 
     # WiFi scans
-    shadow = {b.mac: ShadowField(r_shadow, cfg.radio.shadow_sigma_db, cfg.radio.shadow_corr_m)
+    # radios in one box share most of their shadowing; each BSSID also has an independent part
+    sh_ap = {a.name: ShadowField(r_shadow, cfg.radio.shadow_sigma_db, cfg.radio.shadow_corr_m) for a in aps}
+    sh_b = {b.mac: ShadowField(r_shadow, cfg.radio.shadow_sigma_db, cfg.radio.shadow_corr_m)
+            for a in aps for b in a.bssids}
+    shadow = {b.mac: (lambda p, f=sh_ap[a.name], g=sh_b[b.mac]: np.sqrt(.75) * f(p) + np.sqrt(.25) * g(p))
               for a in aps for b in a.bssids}
     t = 2.0
     scan_id = 0
